@@ -1,23 +1,23 @@
 embedding:
-model: sentence-transformers/all-MiniLM-L6-v2 # 轻量，8GB 显卡友好
-device: auto # auto/cpu/cuda
-batch_size: 64
+  model: sentence-transformers/all-MiniLM-L6-v2 # 轻量，8GB 显卡友好
+  device: auto # auto/cpu/cuda
+  batch_size: 64
 
 
 faiss:
-index_path: ./cache/faiss.index
-dim: 384 # 取决于 embedding 模型
-topk: 3
+  index_path: ./cache/faiss.index
+  dim: 384 # 取决于 embedding 模型
+  topk: 3
 
 
 storage:
-sqlite_path: ./cache/meta.sqlite
+  sqlite_path: ./cache/meta.sqlite
 
 
 retrieval:
-max_context_chars: 1200 # 证据拼装长度上限
+  max_context_chars: 1200 # 证据拼装长度上限
 
 
 llm:
-provider: echo # echo/api
-temperature: 0.2
+  provider: echo # echo/api
+  temperature: 0.2

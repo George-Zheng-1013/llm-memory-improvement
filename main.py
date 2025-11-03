@@ -14,7 +14,7 @@ CFG_PATH = "config.yaml"
 def bootstrap():
     with open(CFG_PATH, "r", encoding="utf-8") as f:
         cfg = yaml.safe_load(f)
-
+    print("Loaded config:", cfg)
     embedder = Embedder(
         cfg.get("embedding", {}).get("model"),
         device=cfg.get("embedding", {}).get("device", "auto"),

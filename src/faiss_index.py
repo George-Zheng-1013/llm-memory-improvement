@@ -12,7 +12,8 @@ class FaissIndex:
             self.index = faiss.read_index(index_path)
         else:
             # 小规模先用 FlatL2，无需训练，易增量
-            self.index = faiss.IndexFlatL2(dim)
+            base_index = faiss.IndexFlatL2(dim)
+            self.index = faiss.IndexIDMap(base_index)
 
     def add(self, vectors: np.ndarray, ids: np.ndarray):
         assert vectors.dtype == np.float32
