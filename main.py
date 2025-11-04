@@ -20,7 +20,9 @@ def bootstrap():
         device=cfg.get("embedding", {}).get("device", "auto"),
         batch_size=cfg.get("embedding", {}).get("batch_size", 64),
     )
-    index = FaissIndex(cfg.get("faiss", {}).get("dim"), cfg.get("faiss", {}).get("index_path"))
+    index = FaissIndex(
+        cfg.get("faiss", {}).get("dim"), cfg.get("faiss", {}).get("index_path")
+    )
     store = CacheStore(cfg.get("storage", {}).get("sqlite_path"))
     retriever = Retriever(embedder, index, store, topk=cfg.get("faiss", {}).get("topk"))
     llm = EchoLLM()  # 后续切换到 ApiLLMClient
@@ -40,7 +42,9 @@ if __name__ == "__main__":
     # 2) 新问题进来
     query = "这周项目是哪天？我叫什么来着？"
     items = retriever.search(query)
-    evidence = assemble_evidence(items, cfg.get("retrieval", {}).get("max_context_chars"))
+    evidence = assemble_evidence(
+        items, cfg.get("retrieval", {}).get("max_context_chars")
+    )
     prompt = build_prompt("耐心的助理", evidence, query)
 
     # 3) 生成（占位）
