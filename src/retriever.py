@@ -19,7 +19,7 @@ class Retriever:
         latest = self.store.latest(1)
         return latest[0]["turn_id"] + 1 if latest else 1
 
-    def add_history(self, speaker: str, text: str, ts: int = 0, tags: str = "") -> int:
+    def add_history(self, speaker: str, text: str, ts: int = 0, tags: str = ""):
         turn_id = self.store.append_turn(speaker, text, ts, tags)
         vec = self.embedder.encode([text])
         vec_id = np.array([turn_id], dtype=np.int64)
