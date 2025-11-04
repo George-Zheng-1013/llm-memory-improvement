@@ -1,4 +1,5 @@
 from typing import Optional
+from openai import OpenAI
 
 
 class LLMClient:
@@ -13,14 +14,34 @@ class EchoLLM(LLMClient):
 
 
 class ApiLLMClient(LLMClient):
+
     def __init__(
-        self, api_key: str, base_url: Optional[str] = None, model: str = "gpt-4o-mini"
+        self,
+        api_key: str,
+        base_url: Optional[str] = None,
+        model: str = "qwen/qwen-2.5-7b-instruct",
     ):
         self.api_key = api_key
         self.base_url = base_url
         self.model = model
+        self.client = OpenAI(base_url=self.base_url, api_key=self.api_key)
 
     def generate(self, prompt: str, temperature: float = 0.2, **kwargs) -> str:
-        # 预留：接入你的实际 API（OpenAI/本地推理服务/其他）
-        # 例如：requests.post(base_url, json={"model": self.model, "messages": [{"role":"user","content":prompt}], ...})
-        raise NotImplementedError("Connect your real API here.")
+        try:
+            completion = self.client.chat.completions.create(
+                extra_headers={
+                    "HTTP-Referer": kwargs.get("site_url", ""),
+                    "X-Title": kwargs.get("site_name", ""),
+                },
+                model=self.model,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=temperature,
+                **{
+                    k: v
+                    for k, v in kwargs.items()
+                    if k not in ["site_url", "site_name"]
+                },
+            )
+            return completion.choices[0].message.content
+        except Exception as e:
+            raise RuntimeError(f"API call failed: {str(e)}")

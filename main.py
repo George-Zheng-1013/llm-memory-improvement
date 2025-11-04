@@ -5,7 +5,7 @@ from src.cache_store import CacheStore
 from src.retriever import Retriever
 from src.assembler import assemble_evidence
 from src.prompts import build_prompt
-from src.llm_client import EchoLLM
+from src.llm_client import EchoLLM, ApiLLMClient
 
 
 CFG_PATH = "config.yaml"
@@ -25,7 +25,11 @@ def bootstrap():
     )
     store = CacheStore(cfg.get("storage", {}).get("sqlite_path"))
     retriever = Retriever(embedder, index, store, topk=cfg.get("faiss", {}).get("topk"))
-    llm = EchoLLM()  # 后续切换到 ApiLLMClient
+    llm = ApiLLMClient(
+        api_key=cfg.get("llm", {}).get("api_key"),
+        base_url=cfg.get("llm", {}).get("base_url"),
+        model=cfg.get("llm", {}).get("model"),
+    )
 
     return cfg, retriever, llm
 

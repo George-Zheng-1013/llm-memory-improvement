@@ -19,5 +19,7 @@ retrieval:
 
 
 llm:
-  provider: echo # echo/api
+  base_url: "https://openrouter.ai/api/v1"
   temperature: 0.2
+  model: "qwen/qwen-2.5-7b-instruct"
+  api_key: "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"

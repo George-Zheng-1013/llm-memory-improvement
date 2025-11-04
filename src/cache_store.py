@@ -27,7 +27,7 @@ class CacheStore:
         self.conn.executescript(SCHEMA)
         self.conn.commit()
 
-    def append_turn(self, speaker: str, text: str, ts: int = 0, tags: str = "") -> int:
+    def append_turn(self, speaker: str, text: str, ts: int = 0, tags: str = ""):
         cur = self.conn.cursor()
         cur.execute(
             "INSERT INTO turns(speaker, text, ts, tags) VALUES(?,?,?,?)",
