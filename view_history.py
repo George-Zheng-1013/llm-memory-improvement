@@ -13,9 +13,7 @@ def view_all_sessions():
     with open(CFG_PATH, "r", encoding="utf-8") as f:
         cfg = yaml.safe_load(f)
 
-    db_path = cfg.get("storage", {}).get(
-        "history_db_path", "./cache/conversation_history.db"
-    )
+    db_path = cfg.get("storage", {}).get("history_db_path")
     store = HistoryStore(db_path=db_path)
 
     sessions = store.get_all_sessions()
@@ -37,9 +35,7 @@ def view_session_detail(session_id: str):
     with open(CFG_PATH, "r", encoding="utf-8") as f:
         cfg = yaml.safe_load(f)
 
-    db_path = cfg.get("storage", {}).get(
-        "history_db_path", "./cache/conversation_history.db"
-    )
+    db_path = cfg.get("storage", {}).get("history_db_path")
     store = HistoryStore(db_path=db_path)
 
     history = store.get_session_history(session_id)

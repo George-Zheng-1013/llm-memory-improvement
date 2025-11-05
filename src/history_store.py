@@ -8,7 +8,7 @@ from typing import Optional, List, Tuple
 class HistoryStore:
     """对话历史存储管理类"""
     
-    def __init__(self, db_path: str = "./cache/conversation_history.db"):
+    def __init__(self, db_path: str):
         """
         初始化历史存储
         

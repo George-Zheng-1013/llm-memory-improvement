@@ -1,24 +1,5 @@
-embedding:
-  model: sentence-transformers/all-MiniLM-L6-v2 # 轻量，8GB 显卡友好
-  device: auto # auto/cpu/cuda
-  batch_size: 64
-
-
-faiss:
-  index_path: ./cache/faiss.index
-  dim: 384 # 取决于 embedding 模型
-  topk: 5
-
-
 storage:
-  sqlite_path: ./cache/meta.sqlite
-  history_db_path: ./cache/conversation_history.db
-
-
-retrieval:
-  max_context_chars: 1200 # 证据拼装长度上限
-  similarity_threshold: 0.95
-
+  history_db_path: ./data/conversation_history.db
 
 llm:
   model: "Pro/Qwen/Qwen2-7B-Instruct"
