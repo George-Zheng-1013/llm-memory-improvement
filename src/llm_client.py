@@ -1,29 +1,23 @@
-from typing import Optional
 import requests
-
+import yaml
 
 class LLMClient:
     def generate(self, prompt: str, temperature: float = 0.2, **kwargs) -> str:
         raise NotImplementedError
-
-
-class EchoLLM(LLMClient):
-    def generate(self, prompt: str, temperature: float = 0.2, **kwargs) -> str:
-        # 占位:截断回显,保证流程可跑
-        return prompt[-800:]
-
 
 class ApiLLMClient(LLMClient):
 
     def __init__(
         self,
         api_key: str,
-        base_url: str = "https://api.siliconflow.cn/v1/chat/completions",
-        model: str = "Pro/Qwen/Qwen2-7B-Instruct",
+        base_url: str,
+        model: str,
     ):
-        self.api_key = api_key
-        self.base_url = base_url
-        self.model = model
+        with open("config.yaml", "r", encoding="utf-8") as f:
+            config = yaml.safe_load(f)
+        self.api_key = config.get("api_key", api_key)
+        self.base_url = config.get("base_url", base_url)
+        self.model = config.get("model", model)
 
     def generate(self, prompt: str, temperature: float = 0.7, **kwargs) -> str:
         try:

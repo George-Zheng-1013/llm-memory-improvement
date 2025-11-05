@@ -7,7 +7,7 @@ embedding:
 faiss:
   index_path: ./cache/faiss.index
   dim: 384 # 取决于 embedding 模型
-  topk: 3
+  topk: 5
 
 
 storage:
@@ -16,6 +16,7 @@ storage:
 
 retrieval:
   max_context_chars: 1200 # 证据拼装长度上限
+  similarity_threshold: 0.95
 
 
 llm:
