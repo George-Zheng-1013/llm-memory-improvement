@@ -1,3 +1,5 @@
+# 未包含config.yaml文件
+
 # 对话历史记录功能说明
 
 ## 功能概述
@@ -7,7 +9,9 @@
 ## 数据库结构
 
 ### 1. conversation_history 表
+
 存储每轮对话的详细记录：
+
 - `id`: 自增主键
 - `session_id`: 会话ID
 - `turn_number`: 对话轮数（从1开始递增）
@@ -17,7 +21,9 @@
 - `created_at`: 可读的时间字符串（格式：YYYY-MM-DD HH:MM:SS）
 
 ### 2. sessions 表
+
 存储会话基本信息：
+
 - `session_id`: 会话ID（主键）
 - `start_time`: 会话开始时间（Unix时间戳）
 - `start_time_str`: 可读的开始时间
@@ -27,11 +33,13 @@
 ## 使用方法
 
 ### 1. 进行对话并自动保存
+
 ```bash
 python main.py
 ```
 
 对话过程中，每轮对话都会自动保存到数据库中，包括：
+
 - 用户输入
 - 助手回复
 - 对话轮数
@@ -40,21 +48,25 @@ python main.py
 每次运行会创建一个新的会话（session），会话ID格式为 `session_<timestamp>`
 
 ### 2. 查看所有历史会话
+
 ```bash
 python view_history.py
 ```
 
 这会显示所有历史会话的列表，包括：
+
 - 会话ID
 - 开始时间
 - 对话轮数
 
 ### 3. 查看指定会话的详细记录
+
 ```bash
 python view_history.py <session_id>
 ```
 
 例如：
+
 ```bash
 python view_history.py session_1699123456789
 ```
@@ -76,6 +88,7 @@ storage:
 ## 示例输出
 
 ### 对话时的保存提示
+
 ```
 用户: 你好
 ----------<构建的Prompt>----------
@@ -87,6 +100,7 @@ storage:
 ```
 
 ### 查看历史会话列表
+
 ```
 === 所有会话列表 ===
 
@@ -101,6 +115,7 @@ storage:
 ```
 
 ### 查看具体会话详情
+
 ```
 === 会话详情: session_1699123456789 ===
 
@@ -118,15 +133,14 @@ storage:
 ## 代码结构
 
 - `src/history_store.py`: 历史记录管理类
+
   - `HistoryStore`: 主类，负责数据库操作
   - `start_session()`: 开始新会话
   - `save_turn()`: 保存一轮对话
   - `get_session_history()`: 获取会话历史
   - `get_all_sessions()`: 获取所有会话列表
   - `get_recent_history()`: 获取最近N轮对话（用于构建上下文）
-
 - `main.py`: 主程序，集成了历史记录保存功能
-
 - `view_history.py`: 查看历史记录的工具脚本
 
 ## 特性
