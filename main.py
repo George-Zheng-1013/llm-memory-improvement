@@ -1,115 +1,91 @@
+# main.py
+
 from src.llm_client import ApiLLMClient
 from src.prompts import build_prompt, get_evidence
 from src.history_store import HistoryStore
+from src.embedding_utils import EMBEDDING_CLIENT 
 import yaml
+import os
 
-CFG_PATH = r"D:\HP\OneDrive\Desktop\学校\课程\专业课\自然语言\llm-memory-improvement\config.yaml"
-
+CFG_PATH = r"config.yaml" 
 
 def bootstrap():
+    if not os.path.exists(CFG_PATH):
+        raise FileNotFoundError(f"Config file not found at {CFG_PATH}.")
+        
     with open(CFG_PATH, "r", encoding="utf-8") as f:
         cfg = yaml.safe_load(f)
     print("Loaded config:", cfg)
+    
     llm = ApiLLMClient(
         api_key=cfg.get("llm", {}).get("api_key"),
         base_url=cfg.get("llm", {}).get("base_url"),
         model=cfg.get("llm", {}).get("model"),
     )
 
-    # 初始化历史存储
-    db_path = cfg.get("storage", {}).get(
-        "history_db_path", "./cache/conversation_history.db"
-    )
-    history_store = HistoryStore(db_path=db_path)
+    db_path = cfg.get("storage", {}).get("history_db_path", "./cache/conversation_history.db")
+    faiss_dir = cfg.get("storage", {}).get("faiss_index_dir", "./cache")
 
+    try:
+        history_store = HistoryStore(db_path=db_path, faiss_index_dir=faiss_dir)
+        # 核心修复：调用重建索引，确保之前的记录被加载
+        history_store.rebuild_faiss_index()
+    except Exception as e:
+        print(f"Error initializing HistoryStore: {e}")
+        history_store = None
+
+    # 不再初始化 External Retriever
+        
     return cfg, llm, history_store
 
 def chat_first_turn(cfg, llm, history_store):
-    """首次对话流程"""
-    print("\n=== 开始对话 (输入 'quit' 或 'exit' 退出) ===\n")
-
-    # 开始新的会话
+    print("\n=== 开始对话 (输入 'quit' 退出) ===\n")
     session_id = history_store.start_session()
     print(f"会话ID: {session_id}")
-    turn_number = 1
+    
+    chat_loop(cfg, llm, history_store, session_id, 0)
 
-    # 获取用户输入
-    user_input = input("用户: ").strip()
-
-    if user_input.lower() in ["quit", "exit", "退出"]:
-        print("对话结束")
-        return
-
-    if not user_input:
-        print("输入不能为空")
-        return
-
-    # 3) 构建 prompt
-    prompt = build_prompt("耐心的助理", user_input)
-    print(
-        f"----------<构建的Prompt>----------\n{prompt}\n----------<构建的Prompt>----------"
-    )
-
-    # 4) 调用大模型生成回复
-    try:
-        answer = llm.generate(
-            prompt, temperature=cfg.get("llm", {}).get("temperature")
-        )
-        print(f"助手: {answer}")
-
-        # 5) 保存对话历史到数据库
-        history_store.save_turn(session_id, turn_number, user_input, answer)
-        print(f"[第{turn_number}轮对话已保存]")
-
-    except Exception as e:
-        print(f"错误: {str(e)}")
-        return
-    print("----------<本轮对话结束>----------\n")
-    chat_loop(cfg, llm, history_store, session_id, turn_number)
-
-def chat_loop(cfg, llm, history_store, session_id, turn_number):
+def chat_loop(cfg, llm, history_store, session_id, last_turn_number):
+    turn_number = last_turn_number
+    rag_cfg = cfg.get("rag", {})
+    system_role = cfg.get("llm", {}).get("system_role", "助理")
+    
     while True:
-        # 获取用户输入
         user_input = input("用户: ").strip()
-
         if user_input.lower() in ["quit", "exit", "退出"]:
-            print(f"对话结束，本次会话共进行了 {turn_number} 轮对话")
-            print(f"历史记录已保存到数据库")
+            history_store.update_session_total_turns(session_id, turn_number)
+            print("对话结束。")
             break
+        if not user_input: continue
 
-        if not user_input:
-            continue
-
-        # 增加轮数
         turn_number += 1
 
-        # 3) 构建 prompt
-        evidence = get_evidence(history_store, session_id)
-        prompt = build_prompt("耐心的助理", user_input, evidence)
-        print(
-            f"----------<构建的Prompt>----------\n{prompt}\n----------<构建的Prompt>----------"
-        )
-
-        # 4) 调用大模型生成回复
+        # 对话式 RAG：从历史中检索证据
+        evidence = ""
         try:
-            answer = llm.generate(
-                prompt, temperature=cfg.get("llm", {}).get("temperature")
+            evidence = get_evidence(
+                history_store, 
+                session_id, 
+                user_input, 
+                top_k=rag_cfg.get("top_k", 5), 
+                similarity_threshold=rag_cfg.get("similarity_threshold", 0.5)
             )
-            print(f"助手: {answer}")
-
-            # 5) 保存对话历史到数据库
-            history_store.save_turn(session_id, turn_number, user_input, answer)
-            print(f"[第{turn_number}轮对话已保存]")
-
         except Exception as e:
-            print(f"错误: {str(e)}")
-            turn_number -= 1  # 出错则不计入轮数
-            continue
-        print("----------<本轮对话结束>----------\n")
+            print(f"Warn: History retrieval failed: {e}")
+            
+        prompt = build_prompt(system_role, user_input, evidence)
+        print(f"--- Context ---\n{evidence}\n----------------")
 
+        try:
+            answer = llm.generate(prompt, temperature=cfg.get("llm", {}).get("temperature", 0.7))
+            print(f"助手: {answer}")
+            history_store.save_turn(session_id, turn_number, user_input, answer)
+        except Exception as e:
+            print(f"Error: {e}")
+            turn_number -= 1
+        print("--------------------------\n")
 
 if __name__ == "__main__":
     cfg, llm, history_store = bootstrap()
-
-    # 启动连续对话
-    chat_first_turn(cfg, llm, history_store)
+    if history_store:
+        chat_first_turn(cfg, llm, history_store)

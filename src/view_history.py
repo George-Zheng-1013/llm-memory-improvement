@@ -1,7 +1,7 @@
 from .history_store import HistoryStore
 import yaml
 
-CFG_PATH = "D:\\HP\\OneDrive\\Desktop\\学校\\课程\\专业课\\自然语言\\llm-memory-improvement\\config.yaml"
+CFG_PATH = r"E:\\task\\学校任务\\nlp项目\\llm-memory-improvement\\config.yaml"
 
 
 def view_all_sessions():
