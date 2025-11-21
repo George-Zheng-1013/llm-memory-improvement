@@ -3,6 +3,7 @@
 from sentence_transformers import SentenceTransformer
 import numpy as np
 from typing import List
+import torch
 
 # 使用一个高效且常用的模型，其维度为 384
 EMBEDDING_MODEL_NAME = 'all-MiniLM-L6-v2' 
@@ -12,8 +13,7 @@ class EmbeddingClient:
     def __init__(self):
         try:
             print(f"Loading Embedding Model: {EMBEDDING_MODEL_NAME}...")
-            # 将设备设置为 'cpu' 以确保在没有 GPU 的机器上也能运行
-            self.model = SentenceTransformer(EMBEDDING_MODEL_NAME, device='cpu') 
+            self.model = SentenceTransformer(EMBEDDING_MODEL_NAME, device='cuda' if torch.cuda.is_available() else 'cpu')
             self.vector_dim = self.model.get_sentence_embedding_dimension()
             print(f"Embedding Model Loaded. Dimension: {self.vector_dim}")
         except Exception as e:

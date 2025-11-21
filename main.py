@@ -7,7 +7,7 @@ from src.embedding_utils import EMBEDDING_CLIENT
 import yaml
 import os
 
-CFG_PATH = r"config.yaml" 
+CFG_PATH = "config.yaml" 
 
 def bootstrap():
     if not os.path.exists(CFG_PATH):

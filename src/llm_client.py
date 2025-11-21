@@ -1,7 +1,7 @@
 import requests
 import yaml
 
-CFG_PATH = r"E:\\task\\学校任务\\nlp项目\\llm-memory-improvement\\config.yaml"
+CFG_PATH = "config.yaml"
 
 
 class LLMClient:
