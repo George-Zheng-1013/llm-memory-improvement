@@ -1,7 +1,7 @@
 from .history_store import HistoryStore
 import yaml
 
-CFG_PATH = "config.yaml"
+CFG_PATH = r"config.yaml"
 
 
 def view_all_sessions():

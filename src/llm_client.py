@@ -1,7 +1,7 @@
 import requests
 import yaml
 
-CFG_PATH = "config.yaml"
+CFG_PATH = r"config.yaml"
 
 
 class LLMClient:

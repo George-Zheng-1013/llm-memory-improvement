@@ -1,91 +1,142 @@
-# main.py
-
 from src.llm_client import ApiLLMClient
-from src.prompts import build_prompt, get_evidence
+from src.prompts import build_prompt, get_evidence_with_retrieval
 from src.history_store import HistoryStore
-from src.embedding_utils import EMBEDDING_CLIENT 
+from src.encoder import encode_and_save_turn
 import yaml
-import os
+from typing import Optional
 
-CFG_PATH = "config.yaml" 
+CFG_PATH = r"config.yaml"
+
+
+def print_sep(char: str = "─", title: Optional[str] = None, width: int = 60):
+    """打印紧凑的一行分隔符，带可选标题（更少换行）。"""
+    if title:
+        # 紧凑标题样式：─── 标题 ───
+        print(f"{char*3} {title} {char*3}")
+    else:
+        print(char * width)
+
+
+def show_evidence(evidence: str):
+    """结构化显示检索到的证据（紧凑模式）。"""
+    if not evidence or not evidence.strip():
+        print("[检索] 无相关历史证据")
+        return
+    print("【检索到的相关历史证据】")
+    print(evidence.strip())
+    print("【证据结束】")
+
 
 def bootstrap():
-    if not os.path.exists(CFG_PATH):
-        raise FileNotFoundError(f"Config file not found at {CFG_PATH}.")
-        
     with open(CFG_PATH, "r", encoding="utf-8") as f:
         cfg = yaml.safe_load(f)
-    print("Loaded config:", cfg)
-    
+    print("Config loaded.")
     llm = ApiLLMClient(
         api_key=cfg.get("llm", {}).get("api_key"),
         base_url=cfg.get("llm", {}).get("base_url"),
         model=cfg.get("llm", {}).get("model"),
     )
 
-    db_path = cfg.get("storage", {}).get("history_db_path", "./cache/conversation_history.db")
-    faiss_dir = cfg.get("storage", {}).get("faiss_index_dir", "./cache")
+    # 初始化历史存储
+    db_path = cfg.get("storage", {}).get(
+        "history_db_path", "data/conversation_history.db"
+    )
+    history_store = HistoryStore(db_path=db_path)
 
-    try:
-        history_store = HistoryStore(db_path=db_path, faiss_index_dir=faiss_dir)
-        # 核心修复：调用重建索引，确保之前的记录被加载
-        history_store.rebuild_faiss_index()
-    except Exception as e:
-        print(f"Error initializing HistoryStore: {e}")
-        history_store = None
-
-    # 不再初始化 External Retriever
-        
     return cfg, llm, history_store
 
+
 def chat_first_turn(cfg, llm, history_store):
-    print("\n=== 开始对话 (输入 'quit' 退出) ===\n")
+    """首次对话流程"""
+    print_sep("=", "开始对话")
+
+    # 开始新的会话
     session_id = history_store.start_session()
-    print(f"会话ID: {session_id}")
-    
-    chat_loop(cfg, llm, history_store, session_id, 0)
+    print(f"会话: {session_id[:8]}")
+    turn_number = 1
 
-def chat_loop(cfg, llm, history_store, session_id, last_turn_number):
-    turn_number = last_turn_number
-    rag_cfg = cfg.get("rag", {})
-    system_role = cfg.get("llm", {}).get("system_role", "助理")
-    
+    # 获取用户输入
+    user_input = input("您: ").strip()
+
+    if user_input.lower() in ["quit", "exit", "退出"]:
+        print("对话已结束")
+        return
+
+    if not user_input:
+        print("输入不能为空")
+        return
+
+    # 首轮对话（不检索）
+    try:
+        print_sep("-", "生成回答")
+        answer = llm.generate(
+            build_prompt("耐心的助理", user_input),
+            temperature=cfg.get("llm", {}).get("temperature"),
+        )
+        print(f"助手: {answer}")
+        print_sep("-")
+
+        # 保存与编码
+        db_path = cfg.get("storage", {}).get(
+            "history_db_path", "data/conversation_history.db"
+        )
+        history_store.save_turn(session_id, turn_number, user_input, answer)
+        encode_and_save_turn(db_path, session_id, turn_number)
+
+    except Exception as e:
+        print(f"✗ 错误: {e}")
+        return
+
+    chat_loop(cfg, llm, history_store, session_id, turn_number)
+
+
+def chat_loop(cfg, llm, history_store, session_id, turn_number):
+    db_path = cfg.get("storage", {}).get(
+        "history_db_path", "data/conversation_history.db"
+    )
+
     while True:
-        user_input = input("用户: ").strip()
-        if user_input.lower() in ["quit", "exit", "退出"]:
-            history_store.update_session_total_turns(session_id, turn_number)
-            print("对话结束。")
-            break
-        if not user_input: continue
+        # 获取用户输入
+        user_input = input("您: ").strip()
 
+        if user_input.lower() in ["quit", "exit", "退出"]:
+            print(f"\n✓ 对话已结束，本次会话共 {turn_number} 轮")
+            break
+
+        if not user_input:
+            continue
+
+        # 增加轮数
         turn_number += 1
 
-        # 对话式 RAG：从历史中检索证据
-        evidence = ""
-        try:
-            evidence = get_evidence(
-                history_store, 
-                session_id, 
-                user_input, 
-                top_k=rag_cfg.get("top_k", 5), 
-                similarity_threshold=rag_cfg.get("similarity_threshold", 0.5)
-            )
-        except Exception as e:
-            print(f"Warn: History retrieval failed: {e}")
-            
-        prompt = build_prompt(system_role, user_input, evidence)
-        print(f"--- Context ---\n{evidence}\n----------------")
+        # 使用语义检索获取最相关的证据
+        print_sep()
+        print(f"回合 {turn_number} — 检索中")
+        evidence = get_evidence_with_retrieval(db_path, session_id, user_input, top_k=5)
 
+        # 显示检索到的证据（若有）
+        show_evidence(evidence)
+
+        # 生成回答
         try:
-            answer = llm.generate(prompt, temperature=cfg.get("llm", {}).get("temperature", 0.7))
+            prompt = build_prompt("耐心的助理", user_input, evidence)
+            answer = llm.generate(
+                prompt, temperature=cfg.get("llm", {}).get("temperature")
+            )
             print(f"助手: {answer}")
+            print_sep()
+
+            # 保存与编码
             history_store.save_turn(session_id, turn_number, user_input, answer)
+            encode_and_save_turn(db_path, session_id, turn_number)
+
         except Exception as e:
-            print(f"Error: {e}")
-            turn_number -= 1
-        print("--------------------------\n")
+            print(f"✗ 错误: {e}")
+            turn_number -= 1  # 出错则不计入轮数
+
 
 if __name__ == "__main__":
     cfg, llm, history_store = bootstrap()
-    if history_store:
-        chat_first_turn(cfg, llm, history_store)
+
+    # 启动连续对话
+    chat_first_turn(cfg, llm, history_store)
