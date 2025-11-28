@@ -3,7 +3,7 @@ import os
 import time
 from datetime import datetime
 from typing import Optional, List, Tuple
-
+import uuid
 
 class HistoryStore:
     """对话历史存储管理类"""
@@ -77,32 +77,54 @@ class HistoryStore:
         conn.commit()
         conn.close()
 
-    def start_session(self) -> str:
+    def start_session(self, session_id: Optional[str] = None) -> str: # <--- 关键修改：添加可选参数 session_id
         """
-        开始新的对话会话
-
+        开始一个新的会话，记录起始时间。
+        Args:
+            session_id: 可选的会话ID。如果未提供，将自动生成 UUID。
         Returns:
-            session_id: 会话ID
+            新会话的ID
         """
-        session_id = f"session_{int(time.time() * 1000)}"
-        timestamp = time.time()
-        timestamp_str = datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S")
-
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
 
-        cursor.execute(
-            """
-        INSERT INTO sessions (session_id, start_time, start_time_str, last_update, total_turns)
-        VALUES (?, ?, ?, ?, 0)
-        """,
-            (session_id, timestamp, timestamp_str, timestamp),
-        )
+        # 如果未提供 session_id，则生成一个 UUID
+        if session_id is None:
+            session_id = str(uuid.uuid4())
 
-        conn.commit()
-        conn.close()
+        current_time = time.time()
+        start_time_str = datetime.fromtimestamp(current_time).strftime("%Y-%m-%d %H:%M:%S")
 
-        return session_id
+        # 尝试插入新的会话记录 (使用提供的 session_id 或新生成的)
+        try:
+            cursor.execute(
+                """
+            INSERT INTO sessions 
+            (session_id, start_time, start_time_str, last_update, total_turns)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+                (session_id, current_time, start_time_str, current_time, 0),
+            )
+            conn.commit()
+            return session_id
+        except sqlite3.IntegrityError:
+            # 如果 session_id 已经存在 (自动化测试可能重用)，仅更新 last_update
+            cursor.execute(
+                """
+            UPDATE sessions 
+            SET last_update = ?, total_turns = 0
+            WHERE session_id = ?
+            """,
+                (current_time, session_id),
+            )
+            conn.commit()
+            return session_id
+        except Exception as e:
+            conn.rollback()
+            print(f"错误: 启动会话失败: {e}")
+            raise
+        finally:
+            conn.close()
 
     def save_turn(
         self,
